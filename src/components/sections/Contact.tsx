@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
 
 export const Contact: React.FC = () => {
-  const { profile } = useApp();
+  const { profile, submitContactMessage } = useApp();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,20 +22,30 @@ export const Contact: React.FC = () => {
     soundFX.playClick();
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitted(true);
-      soundFX.playSwoosh();
+    submitContactMessage({
+      name: formData.name,
+      email: formData.email,
+      subject: formData.subject,
+      message: formData.message
+    })
+      .then(() => {
+        setIsSubmitting(false);
+        setSubmitted(true);
+        soundFX.playSwoosh();
 
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+
+        setFormData({ name: '', email: '', subject: '', message: '' });
+        setTimeout(() => setSubmitted(false), 5000);
+      })
+      .catch((err) => {
+        console.error('Failed to submit message:', err);
+        setIsSubmitting(false);
       });
-
-      setFormData({ name: '', email: '', subject: '', message: '' });
-      setTimeout(() => setSubmitted(false), 5000);
-    }, 1200);
   };
 
   return (

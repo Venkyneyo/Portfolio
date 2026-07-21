@@ -15,7 +15,10 @@ import {
   Search,
   Sparkles,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  LogOut,
+  FileText,
+  Settings
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
@@ -28,13 +31,32 @@ import { EducationManager } from './EducationManager';
 import { AchievementsManager } from './AchievementsManager';
 import { MessagesInbox } from './MessagesInbox';
 import { DatabaseBackup } from './DatabaseBackup';
+import { BlogsManager } from './BlogsManager';
+import { SystemSettings } from './SystemSettings';
+import { AdminLogin } from './AdminLogin';
+import { supabase } from '../../utils/supabaseClient';
 
 export const AdminLayout: React.FC = () => {
-  const { toggleAdmin, messages, profile } = useApp();
+  const { toggleAdmin, messages, profile, adminUser, checkingAuth, logoutAdmin } = useApp();
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'profile' | 'projects' | 'techstack' | 'experience' | 'education' | 'achievements' | 'messages' | 'backup'
+    'overview' | 'profile' | 'projects' | 'techstack' | 'experience' | 'education' | 'achievements' | 'blogs' | 'system' | 'messages' | 'backup'
   >('overview');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // If Auth check is loading
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#050816] flex flex-col items-center justify-center font-sans">
+        <div className="w-10 h-10 border-4 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-xs font-mono text-slate-400 uppercase tracking-widest">Verifying Authorization Token...</p>
+      </div>
+    );
+  }
+
+  // If online mode (Supabase is initialized) and no admin user session exists, render login card
+  if (supabase && !adminUser) {
+    return <AdminLogin />;
+  }
 
   const unreadMessagesCount = messages.filter((m) => m.status === 'unread').length;
 
@@ -46,6 +68,8 @@ export const AdminLayout: React.FC = () => {
     { id: 'experience', label: 'Work History', icon: Briefcase },
     { id: 'education', label: 'Education & Certs', icon: GraduationCap },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
+    { id: 'blogs', label: 'Blogs & Articles', icon: FileText },
+    { id: 'system', label: 'Theme & Nav Settings', icon: Settings },
     { id: 'messages', label: 'Messages Inbox', icon: MessageSquare, badge: unreadMessagesCount },
     { id: 'backup', label: 'Database & JSON Backup', icon: Database },
   ];
@@ -56,6 +80,11 @@ export const AdminLayout: React.FC = () => {
     .join('')
     .substring(0, 2)
     .toUpperCase();
+
+  const handleLogout = async () => {
+    soundFX.playClick();
+    await logoutAdmin();
+  };
 
   return (
     <div className="min-h-screen bg-[#050816] text-slate-100 flex flex-col md:flex-row relative z-30 font-sans">
@@ -73,7 +102,9 @@ export const AdminLayout: React.FC = () => {
               </div>
               <div>
                 <h1 className="font-extrabold text-sm text-white tracking-tight">ADMIN COCKPIT</h1>
-                <span className="text-[10px] font-mono text-accent-pink tracking-widest uppercase">CMS Engine Live</span>
+                <span className="text-[10px] font-mono text-accent-pink tracking-widest uppercase">
+                  {supabase ? 'Production DB Connected' : 'Offline Storage Mode'}
+                </span>
               </div>
             </div>
           </div>
@@ -112,8 +143,18 @@ export const AdminLayout: React.FC = () => {
           </nav>
         </div>
 
-        {/* Back to Public Site */}
-        <div className="pt-6 border-t border-white/10 mt-6">
+        {/* Back and Logout Actions */}
+        <div className="pt-6 border-t border-white/10 mt-6 space-y-2">
+          {supabase && (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-all cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
+            </button>
+          )}
+
           <button
             onClick={toggleAdmin}
             onMouseEnter={() => soundFX.playHover()}
@@ -139,6 +180,8 @@ export const AdminLayout: React.FC = () => {
               {activeTab === 'experience' && 'Work History & Career Timeline'}
               {activeTab === 'education' && 'Education & Industry Certifications'}
               {activeTab === 'achievements' && 'Achievements & Awards Manager'}
+              {activeTab === 'blogs' && 'Blogs & Professional Articles'}
+              {activeTab === 'system' && 'Theme Customization & Nav Setup'}
               {activeTab === 'messages' && 'Inbound Contact Messages Inbox'}
               {activeTab === 'backup' && 'Database Storage & JSON Backup'}
             </h2>
@@ -172,7 +215,7 @@ export const AdminLayout: React.FC = () => {
                 >
                   <div className="flex items-center justify-between font-bold text-white border-b border-white/10 pb-2">
                     <span>Notifications</span>
-                    <span className="text-[10px] text-accent-cyan">Live Storage Ready</span>
+                    <span className="text-[10px] text-accent-cyan">Storage Status</span>
                   </div>
                   <div className="space-y-2">
                     <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2">
@@ -211,6 +254,8 @@ export const AdminLayout: React.FC = () => {
           {activeTab === 'experience' && <ExperienceManager />}
           {activeTab === 'education' && <EducationManager />}
           {activeTab === 'achievements' && <AchievementsManager />}
+          {activeTab === 'blogs' && <BlogsManager />}
+          {activeTab === 'system' && <SystemSettings />}
           {activeTab === 'messages' && <MessagesInbox />}
           {activeTab === 'backup' && <DatabaseBackup />}
         </div>

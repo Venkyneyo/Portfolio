@@ -23,6 +23,9 @@ export interface ProfileSettings {
   shippedProjects: number;
   uptimePercentage: number;
   activeUsers: string;
+  theme_config?: any;
+  seo_metadata?: any;
+  banner_image?: string;
 }
 
 export interface ProjectStats {
@@ -49,6 +52,7 @@ export interface Project {
   category: ProjectCategory;
   coverImage: string;
   images: string[];
+  demoVideo?: string;
   tags: string[];
   stats: ProjectStats;
   features: string[];

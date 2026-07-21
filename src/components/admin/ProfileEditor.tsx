@@ -1,14 +1,67 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, MapPin, Globe, Sparkles, Save, CheckCircle2, Image, FileText } from 'lucide-react';
+import { User, Mail, MapPin, Globe, Sparkles, Save, CheckCircle2, Image as ImageIcon, FileText, Upload, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
+import { uploadService } from '../../utils/uploadService';
+import { supabase } from '../../utils/supabaseClient';
 
 export const ProfileEditor: React.FC = () => {
   const { profile, updateProfile } = useApp();
   const [formData, setFormData] = useState({ ...profile });
   const [rolesInput, setRolesInput] = useState((profile.roles || []).join('\n'));
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!supabase) {
+      setUploadError('Database not connected. Asset uploads are disabled.');
+      return;
+    }
+
+    soundFX.playClick();
+    setUploadingImage(true);
+    setUploadError(null);
+
+    try {
+      const publicUrl = await uploadService.uploadFile(file, 'profiles');
+      setFormData((prev) => ({ ...prev, profileImage: publicUrl }));
+      soundFX.playSwoosh();
+    } catch (err: any) {
+      setUploadError(err.message || 'Image upload failed.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!supabase) {
+      setUploadError('Database not connected. Asset uploads are disabled.');
+      return;
+    }
+
+    soundFX.playClick();
+    setUploadingResume(true);
+    setUploadError(null);
+
+    try {
+      const publicUrl = await uploadService.uploadFile(file, 'resumes');
+      setFormData((prev) => ({ ...prev, resumeUrl: publicUrl }));
+      soundFX.playSwoosh();
+    } catch (err: any) {
+      setUploadError(err.message || 'Resume upload failed.');
+    } finally {
+      setUploadingResume(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +109,13 @@ export const ProfileEditor: React.FC = () => {
           </motion.div>
         )}
       </div>
+
+      {uploadError && (
+        <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4" />
+          <span>{uploadError}</span>
+        </div>
+      )}
 
       {/* Editor Form */}
       <form onSubmit={handleSubmit} className="glass-card rounded-3xl p-8 border border-white/10 space-y-8">
@@ -145,31 +205,54 @@ export const ProfileEditor: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 3: Bio & Profile Image */}
+        {/* Section 3: Bio & Profile Image / Resume Upload */}
         <div className="pt-6 border-t border-white/10">
           <h4 className="text-sm font-bold text-accent-pink uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Image className="w-4 h-4" /> Bio & Media Assets
+            <ImageIcon className="w-4 h-4" /> Bio & Media Assets (Cloud Uploads)
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-2">PROFILE IMAGE URL</label>
-              <input
-                type="text"
-                value={formData.profileImage}
-                onChange={(e) => setFormData({ ...formData, profileImage: e.target.value })}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-accent-pink"
-              />
+              <label className="block text-xs font-mono text-slate-300 mb-2">PROFILE PHOTO</label>
+              <div className="flex gap-4 items-center">
+                {formData.profileImage && (
+                  <img src={formData.profileImage} alt="Profile" className="w-12 h-12 rounded-xl object-cover border border-white/10" />
+                )}
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={formData.profileImage || ''}
+                    onChange={(e) => setFormData({ ...formData, profileImage: e.target.value })}
+                    placeholder="Profile URL or choose file below..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#050816] border border-white/10 text-white text-xs mb-2"
+                  />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-accent-pink/20 file:text-accent-pink file:cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-2">RESUME / CV DOCUMENT URL</label>
-              <input
-                type="text"
-                value={formData.resumeUrl}
-                onChange={(e) => setFormData({ ...formData, resumeUrl: e.target.value })}
-                placeholder="https://example.com/resume.pdf"
-                className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-accent-pink"
-              />
+              <label className="block text-xs font-mono text-slate-300 mb-2">RESUME PDF</label>
+              <div className="flex gap-4 items-center">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={formData.resumeUrl || ''}
+                    onChange={(e) => setFormData({ ...formData, resumeUrl: e.target.value })}
+                    placeholder="Resume URL or upload PDF below..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#050816] border border-white/10 text-white text-xs mb-2"
+                  />
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleResumeUpload}
+                    className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-accent-blue/20 file:text-accent-cyan file:cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -178,7 +261,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">HERO BIO SUBTEXT</label>
               <textarea
                 rows={3}
-                value={formData.bio}
+                value={formData.bio || ''}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-accent-pink"
               />
@@ -187,7 +270,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">ABOUT PHILOSOPHY TEXT</label>
               <textarea
                 rows={3}
-                value={formData.aboutText}
+                value={formData.aboutText || ''}
                 onChange={(e) => setFormData({ ...formData, aboutText: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-accent-pink"
               />
@@ -235,7 +318,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">GITHUB URL</label>
               <input
                 type="text"
-                value={formData.githubUrl}
+                value={formData.githubUrl || ''}
                 onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-400"
               />
@@ -244,7 +327,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">LINKEDIN URL</label>
               <input
                 type="text"
-                value={formData.linkedinUrl}
+                value={formData.linkedinUrl || ''}
                 onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-400"
               />
@@ -253,7 +336,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">TWITTER / X URL</label>
               <input
                 type="text"
-                value={formData.twitterUrl}
+                value={formData.twitterUrl || ''}
                 onChange={(e) => setFormData({ ...formData, twitterUrl: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-400"
               />
@@ -299,7 +382,7 @@ export const ProfileEditor: React.FC = () => {
               <label className="block text-xs font-mono text-slate-300 mb-2">ACTIVE USERS</label>
               <input
                 type="text"
-                value={formData.activeUsers}
+                value={formData.activeUsers || ''}
                 onChange={(e) => setFormData({ ...formData, activeUsers: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl bg-[#050816] border border-white/10 text-white text-sm focus:outline-none focus:border-accent-cyan"
               />
