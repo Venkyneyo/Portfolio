@@ -27,6 +27,10 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 
 // Connect to SQLite DB
+const dbDir = path.dirname(path.join(__dirname, 'portfolio.db'));
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 const dbPath = path.join(__dirname, 'portfolio.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -981,6 +985,6 @@ if (fs.existsSync(distPath)) {
 }
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`Local Express API Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Local Express API Server running on port ${PORT} bound to 0.0.0.0`);
 });
