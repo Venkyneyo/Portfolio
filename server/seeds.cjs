@@ -1,7 +1,7 @@
 module.exports = {
   profile: {
-    fullName: 'Alex Vance',
-    brandName: 'ALEX.DEV',
+    fullName: 'Developer Portfolio',
+    brandName: 'PORTFOLIO',
     roleTitle: 'Senior Full-Stack Architect & AI Systems Engineer',
     heroHeadline1: 'Engineering',
     heroHeadlineGradient1: 'Next-Gen SaaS',

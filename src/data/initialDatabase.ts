@@ -9,8 +9,8 @@ export const initialDatabase: DatabaseState = {
   version: '1.0.0',
   updatedAt: new Date().toISOString(),
   profile: {
-    fullName: 'Alex Vance',
-    brandName: 'ALEX.DEV',
+    fullName: 'Developer Portfolio',
+    brandName: 'PORTFOLIO',
     roleTitle: 'Senior Full-Stack Architect & AI Systems Engineer',
     heroHeadline1: 'Engineering',
     heroHeadlineGradient1: 'Next-Gen SaaS',

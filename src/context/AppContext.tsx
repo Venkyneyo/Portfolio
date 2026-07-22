@@ -269,7 +269,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Query from local Express Node.js Server
         try {
           const localData = await localApi.getPortfolio();
-          setDb({
+          const newDb: DatabaseState = {
             version: '1.0.0',
             updatedAt: new Date().toISOString(),
             profile: localData.profile,
@@ -281,7 +281,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             achievements: localData.achievements,
             testimonials: initialDatabase.testimonials,
             messages: localData.messages
-          });
+          };
+          setDb(newDb);
+          storageService.saveDatabase(newDb);
           setBlogs(localData.blogs);
           if (localData.navigation && localData.navigation.length > 0) {
             setNavigationItems(localData.navigation);
