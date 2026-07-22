@@ -119,7 +119,11 @@ export const AdminLogin: React.FC = () => {
         {/* Cancel Action */}
         <div className="pt-2 border-t border-white/10 flex justify-center">
           <button
-            onClick={toggleAdmin}
+            onClick={() => {
+              soundFX.playClick();
+              window.history.pushState({}, '', '/');
+              window.dispatchEvent(new Event('popstate'));
+            }}
             onMouseEnter={() => soundFX.playHover()}
             className="flex items-center gap-2 text-xs font-semibold text-accent-cyan hover:text-white transition-colors cursor-pointer"
           >

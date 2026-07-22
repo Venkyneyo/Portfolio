@@ -35,7 +35,17 @@ export const initialDatabase: DatabaseState = {
     yearsExperience: 5,
     shippedProjects: 35,
     uptimePercentage: 99.9,
-    activeUsers: '100k+'
+    activeUsers: '100k+',
+    leetcodeUsername: 'alex_codes',
+    leetcodeUrl: 'https://leetcode.com/u/alex_codes',
+    leetcodeTotalSolved: 850,
+    leetcodeEasySolved: 310,
+    leetcodeMediumSolved: 420,
+    leetcodeHardSolved: 120,
+    leetcodeGlobalRanking: 'Top 1.2%',
+    leetcodeContestRating: 2150,
+    leetcodeStreakDays: 145,
+    leetcodeAcceptanceRate: 68.4
   },
   skills: skillsData.map((s, idx) => ({ ...s, id: `skill-${idx + 1}` })),
   projects: projectsData,

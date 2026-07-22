@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Terminal, Sparkles, ShieldCheck, Download, Code2, Cpu, Globe } from 'lucide-react';
+import { ArrowRight, Terminal, Sparkles, Download, Cpu, Globe } from 'lucide-react';
 import { StatCounter } from '../ui/StatCounter';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
 
 export const Hero: React.FC = () => {
-  const { toggleAdmin, profile } = useApp();
+  const { profile } = useApp();
   const [roleIndex, setRoleIndex] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -136,17 +136,6 @@ export const Hero: React.FC = () => {
                   <span>Resume</span>
                 </motion.a>
               )}
-
-              <motion.button
-                onClick={toggleAdmin}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onMouseEnter={() => soundFX.playHover()}
-                className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-accent-purple/20 border border-accent-purple/40 text-accent-cyan font-semibold text-sm hover:bg-accent-purple/30 transition-all duration-300 cursor-pointer shadow-glow-purple"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Admin Console</span>
-              </motion.button>
             </div>
 
             {/* Stats Counter Grid */}

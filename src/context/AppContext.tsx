@@ -9,9 +9,12 @@ import {
   EducationItem,
   CertificationItem,
   AchievementItem,
-  MessageItem
+  MessageItem,
+  CodingProfileItem,
+  SyncLogItem
 } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { localApi } from '../utils/localApi';
 import { storageService } from '../utils/storageService';
 import { soundFX } from '../utils/soundFX';
 import { initialDatabase } from '../data/initialDatabase';
@@ -112,6 +115,13 @@ interface AppContextType {
   markMessageRead: (id: string) => Promise<void>;
   deleteMessage: (id: string) => Promise<void>;
 
+  // Coding Profiles & Auto Sync
+  codingProfiles: CodingProfileItem[];
+  syncLogs: SyncLogItem[];
+  updateCodingProfileConfig: (platform: string, config: { username: string; profileUrl: string; autoSyncEnabled: boolean }) => Promise<void>;
+  triggerProfileSync: (platform: string) => Promise<{ success: boolean; stats?: any; error?: string }>;
+  fetchSyncLogs: () => Promise<void>;
+
   // Database Utilities
   exportDatabase: () => void;
   importDatabase: (importedDb: DatabaseState) => Promise<void>;
@@ -133,6 +143,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Live Database Collections
   const [db, setDb] = useState<DatabaseState>(() => storageService.loadDatabase());
   const [blogs, setBlogs] = useState<BlogItem[]>([]);
+  const [codingProfiles, setCodingProfiles] = useState<CodingProfileItem[]>([]);
+  const [syncLogs, setSyncLogs] = useState<SyncLogItem[]>([]);
   const [navigationItems, setNavigationItems] = useState<NavigationItem[]>([
     { id: 'nav-1', label: 'About', path: '#about', orderIndex: 0 },
     { id: 'nav-2', label: 'Skills', path: '#skills', orderIndex: 1 },
@@ -145,7 +157,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Check auth session
   useEffect(() => {
     if (!supabase) {
-      setCheckingAuth(false);
+      // Local Express backend auth session check
+      const token = localStorage.getItem('admin_token');
+      if (token) {
+        localApi
+          .checkAuthMe()
+          .then((data) => {
+            setAdminUser({ email: data.user.email, id: data.user.id || 'local-admin' } as any);
+          })
+          .catch(() => {
+            localStorage.removeItem('admin_token');
+            setAdminUser(null);
+          })
+          .finally(() => {
+            setCheckingAuth(false);
+          });
+      } else {
+        setAdminUser(null);
+        setCheckingAuth(false);
+      }
       return;
     }
 
@@ -162,83 +192,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Database from Supabase on start
+  // Fetch Database from Supabase or Local Express API on start
   useEffect(() => {
-    const fetchSupabaseDatabase = async () => {
-      if (!supabase) return;
+    const fetchDatabase = async () => {
+      if (supabase) {
+        try {
+          // Fetch Profile
+          const { data: profileData, error: profileErr } = await supabase.from('profile').select('*').limit(1).maybeSingle();
+          if (profileErr) throw profileErr;
 
-      try {
-        // Fetch Profile
-        const { data: profileData, error: profileErr } = await supabase.from('profile').select('*').limit(1).maybeSingle();
-        if (profileErr) throw profileErr;
+          // Fetch Skills
+          const { data: skillsData, error: skillsErr } = await supabase.from('skills').select('*').order('level', { ascending: false });
+          if (skillsErr) throw skillsErr;
 
-        // Fetch Skills
-        const { data: skillsData, error: skillsErr } = await supabase.from('skills').select('*').order('level', { ascending: false });
-        if (skillsErr) throw skillsErr;
+          // Fetch Projects
+          const { data: projectsData, error: projErr } = await supabase.from('projects').select('*').order('featured', { ascending: false });
+          if (projErr) throw projErr;
 
-        // Fetch Projects
-        const { data: projectsData, error: projErr } = await supabase.from('projects').select('*').order('featured', { ascending: false });
-        if (projErr) throw projErr;
+          // Fetch Experience
+          const { data: expData, error: expErr } = await supabase.from('experience').select('*').order('period', { ascending: false });
+          if (expErr) throw expErr;
 
-        // Fetch Experience
-        const { data: expData, error: expErr } = await supabase.from('experience').select('*').order('period', { ascending: false });
-        if (expErr) throw expErr;
+          // Fetch Education
+          const { data: eduData, error: eduErr } = await supabase.from('education').select('*').order('period', { ascending: false });
+          if (eduErr) throw eduErr;
 
-        // Fetch Education
-        const { data: eduData, error: eduErr } = await supabase.from('education').select('*').order('period', { ascending: false });
-        if (eduErr) throw eduErr;
+          // Fetch Certifications
+          const { data: certData, error: certErr } = await supabase.from('certifications').select('*').order('issue_date', { ascending: false });
+          if (certErr) throw certErr;
 
-        // Fetch Certifications
-        const { data: certData, error: certErr } = await supabase.from('certifications').select('*').order('issue_date', { ascending: false });
-        if (certErr) throw certErr;
+          // Fetch Achievements
+          const { data: achData, error: achErr } = await supabase.from('achievements').select('*').order('date', { ascending: false });
+          if (achErr) throw achErr;
 
-        // Fetch Achievements
-        const { data: achData, error: achErr } = await supabase.from('achievements').select('*').order('date', { ascending: false });
-        if (achErr) throw achErr;
+          // Fetch Messages
+          const { data: msgData, error: msgErr } = await supabase.from('messages').select('*').order('date', { ascending: false });
+          if (msgErr) throw msgErr;
 
-        // Fetch Messages
-        const { data: msgData, error: msgErr } = await supabase.from('messages').select('*').order('date', { ascending: false });
-        if (msgErr) throw msgErr;
+          // Fetch Blogs
+          const { data: blogData, error: blogErr } = await supabase.from('blogs').select('*').order('published_at', { ascending: false });
+          if (blogErr) throw blogErr;
 
-        // Fetch Blogs
-        const { data: blogData, error: blogErr } = await supabase.from('blogs').select('*').order('published_at', { ascending: false });
-        if (blogErr) throw blogErr;
+          // Fetch Navigation
+          const { data: navData, error: navErr } = await supabase.from('navigation').select('*').order('order_index', { ascending: true });
+          if (navErr) throw navErr;
 
-        // Fetch Navigation
-        const { data: navData, error: navErr } = await supabase.from('navigation').select('*').order('order_index', { ascending: true });
-        if (navErr) throw navErr;
+          // Map and Seed if DB is empty
+          let activeProfile = profileData;
+          if (!activeProfile) {
+            // Auto-seed profile on Supabase if empty
+            const { data: inserted, error: insertErr } = await supabase.from('profile').insert([initialDatabase.profile]).select().single();
+            if (!insertErr) activeProfile = inserted;
+          }
 
-        // Map and Seed if DB is empty
-        let activeProfile = profileData;
-        if (!activeProfile) {
-          // Auto-seed profile on Supabase if empty
-          const { data: inserted, error: insertErr } = await supabase.from('profile').insert([initialDatabase.profile]).select().single();
-          if (!insertErr) activeProfile = inserted;
+          setDb({
+            version: '1.0.0',
+            updatedAt: new Date().toISOString(),
+            profile: activeProfile || initialDatabase.profile,
+            skills: skillsData || [],
+            projects: projectsData || [],
+            experiences: expData || [],
+            education: eduData || [],
+            certifications: certData || [],
+            achievements: achData || [],
+            testimonials: initialDatabase.testimonials,
+            messages: msgData || []
+          });
+
+          if (blogData) setBlogs(blogData);
+          if (navData && navData.length > 0) setNavigationItems(navData);
+
+        } catch (err) {
+          console.error('Supabase fetch failed, continuing in offline fallback mode:', err);
         }
-
-        setDb({
-          version: '1.0.0',
-          updatedAt: new Date().toISOString(),
-          profile: activeProfile || initialDatabase.profile,
-          skills: skillsData || [],
-          projects: projectsData || [],
-          experiences: expData || [],
-          education: eduData || [],
-          certifications: certData || [],
-          achievements: achData || [],
-          testimonials: initialDatabase.testimonials,
-          messages: msgData || []
-        });
-
-        if (blogData) setBlogs(blogData);
-        if (navData && navData.length > 0) setNavigationItems(navData);
-
-      } catch (err) {
-        console.error('Supabase fetch failed, continuing in offline fallback mode:', err);
+      } else {
+        // Query from local Express Node.js Server
+        try {
+          const localData = await localApi.getPortfolio();
+          setDb({
+            version: '1.0.0',
+            updatedAt: new Date().toISOString(),
+            profile: localData.profile,
+            skills: localData.skills,
+            projects: localData.projects,
+            experiences: localData.experiences,
+            education: localData.education,
+            certifications: localData.certifications,
+            achievements: localData.achievements,
+            testimonials: initialDatabase.testimonials,
+            messages: localData.messages
+          });
+          setBlogs(localData.blogs);
+          if (localData.navigation && localData.navigation.length > 0) {
+            setNavigationItems(localData.navigation);
+          }
+          try {
+            const cpData = await localApi.getCodingProfiles();
+            if (cpData) setCodingProfiles(cpData);
+          } catch (e) {}
+        } catch (err) {
+          console.warn('Local Express server offline, falling back to local storage:', err);
+          const offlineDb = storageService.loadDatabase();
+          setDb(offlineDb);
+        }
       }
     };
 
-    fetchSupabaseDatabase();
+    fetchDatabase();
   }, [adminUser]);
 
   const toggleSound = () => {
@@ -270,7 +330,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth Operations
   const loginAdmin = async (email: string, password: string) => {
-    if (!supabase) return { success: false, error: 'Database client not connected.' };
+    if (!supabase) {
+      // Local Express auth
+      try {
+        const data = await localApi.login(email, password);
+        setAdminUser({ email: data.user.email, id: 'local-admin' } as any);
+        return { success: true };
+      } catch (e: any) {
+        return { success: false, error: e.message || 'Authentication failed.' };
+      }
+    }
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -282,7 +351,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logoutAdmin = async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      localStorage.removeItem('admin_token');
+      setAdminUser(null);
+      return;
+    }
     await supabase.auth.signOut();
     setAdminUser(null);
   };
@@ -294,6 +367,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (supabase && adminUser) {
       await supabase.from('profile').update(updated).eq('email', db.profile.email);
+    } else if (adminUser) {
+      await localApi.updateProfile(updatedProfile);
     }
   };
 
@@ -302,6 +377,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, projects: [project, ...prev.projects] }));
     if (supabase && adminUser) {
       await supabase.from('projects').insert([project]);
+    } else if (adminUser) {
+      await localApi.addProject(project);
     }
   };
 
@@ -312,6 +389,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('projects').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateProject(updated.id, updated);
     }
   };
 
@@ -322,6 +401,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('projects').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteProject(id);
     }
   };
 
@@ -330,6 +411,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, skills: [...prev.skills, skill] }));
     if (supabase && adminUser) {
       await supabase.from('skills').insert([skill]);
+    } else if (adminUser) {
+      await localApi.addSkill(skill);
     }
   };
 
@@ -340,6 +423,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('skills').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateSkill(updated.id, updated);
     }
   };
 
@@ -350,6 +435,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('skills').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteSkill(id);
     }
   };
 
@@ -358,6 +445,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, experiences: [exp, ...prev.experiences] }));
     if (supabase && adminUser) {
       await supabase.from('experience').insert([exp]);
+    } else if (adminUser) {
+      await localApi.addExperience(exp);
     }
   };
 
@@ -368,6 +457,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('experience').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateExperience(updated.id, updated);
     }
   };
 
@@ -378,6 +469,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('experience').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteExperience(id);
     }
   };
 
@@ -386,6 +479,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, education: [edu, ...prev.education] }));
     if (supabase && adminUser) {
       await supabase.from('education').insert([edu]);
+    } else if (adminUser) {
+      await localApi.addEducation(edu);
     }
   };
 
@@ -396,6 +491,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('education').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateEducation(updated.id, updated);
     }
   };
 
@@ -406,6 +503,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('education').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteEducation(id);
     }
   };
 
@@ -414,6 +513,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, certifications: [cert, ...prev.certifications] }));
     if (supabase && adminUser) {
       await supabase.from('certifications').insert([cert]);
+    } else if (adminUser) {
+      await localApi.addCertification(cert);
     }
   };
 
@@ -424,6 +525,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('certifications').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateCertification(updated.id, updated);
     }
   };
 
@@ -434,6 +537,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('certifications').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteCertification(id);
     }
   };
 
@@ -442,6 +547,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, achievements: [ach, ...prev.achievements] }));
     if (supabase && adminUser) {
       await supabase.from('achievements').insert([ach]);
+    } else if (adminUser) {
+      await localApi.addAchievement(ach);
     }
   };
 
@@ -452,6 +559,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('achievements').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateAchievement(updated.id, updated);
     }
   };
 
@@ -462,6 +571,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('achievements').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteAchievement(id);
     }
   };
 
@@ -470,6 +581,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBlogs((prev) => [blog, ...prev]);
     if (supabase && adminUser) {
       await supabase.from('blogs').insert([blog]);
+    } else if (adminUser) {
+      await localApi.addBlog(blog);
     }
   };
 
@@ -477,6 +590,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBlogs((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
     if (supabase && adminUser) {
       await supabase.from('blogs').update(updated).eq('id', updated.id);
+    } else if (adminUser) {
+      await localApi.updateBlog(updated.id, updated);
     }
   };
 
@@ -484,6 +599,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBlogs((prev) => prev.filter((b) => b.id !== id));
     if (supabase && adminUser) {
       await supabase.from('blogs').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteBlog(id);
     }
   };
 
@@ -493,6 +610,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (supabase && adminUser) {
       await supabase.from('navigation').delete().neq('id', 'null');
       await supabase.from('navigation').insert(items);
+    } else if (adminUser) {
+      await localApi.saveNavigation(items);
     }
   };
 
@@ -508,6 +627,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => ({ ...prev, messages: [payload, ...prev.messages] }));
     if (supabase) {
       await supabase.from('messages').insert([payload]);
+    } else {
+      await localApi.submitMessage(payload);
     }
   };
 
@@ -518,6 +639,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('messages').update({ status: 'read' }).eq('id', id);
+    } else if (adminUser) {
+      await localApi.markMessageStatus(id, { status: 'read', priority: 'medium' });
     }
   };
 
@@ -528,6 +651,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     if (supabase && adminUser) {
       await supabase.from('messages').delete().eq('id', id);
+    } else if (adminUser) {
+      await localApi.deleteMessage(id);
     }
   };
 
@@ -541,7 +666,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     storageService.saveDatabase(importedDb);
 
     if (supabase && adminUser) {
-      // Direct restoration on Supabase tables
       await supabase.from('profile').delete().neq('email', 'null');
       await supabase.from('profile').insert([importedDb.profile]);
       
@@ -574,13 +698,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  useEffect(() => {
-    if (customCursorEnabled) {
-      document.body.classList.add('custom-cursor-active');
-    } else {
-      document.body.classList.remove('custom-cursor-active');
+  // --- Coding Profiles Methods ---
+  const updateCodingProfileConfig = async (platform: string, config: { username: string; profileUrl: string; autoSyncEnabled: boolean }) => {
+    if (!supabase && adminUser) {
+      await localApi.updateCodingProfile(platform, config);
+      const updatedList = await localApi.getCodingProfiles();
+      setCodingProfiles(updatedList);
     }
-  }, [customCursorEnabled]);
+  };
+
+  const triggerProfileSync = async (platform: string) => {
+    if (!supabase && adminUser) {
+      try {
+        const res = await localApi.syncCodingProfileNow(platform);
+        const updatedList = await localApi.getCodingProfiles();
+        setCodingProfiles(updatedList);
+        await fetchSyncLogs();
+        return { success: true, stats: res.stats };
+      } catch (err: any) {
+        await fetchSyncLogs();
+        return { success: false, error: err.message };
+      }
+    }
+    return { success: false, error: 'Database connection offline' };
+  };
+
+  const fetchSyncLogs = async () => {
+    if (!supabase && adminUser) {
+      try {
+        const logs = await localApi.getSyncLogs();
+        setSyncLogs(logs);
+      } catch (e) {}
+    }
+  };
 
   return (
     <AppContext.Provider
@@ -610,6 +760,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         messages: db.messages,
         blogs,
         navigationItems,
+        codingProfiles,
+        syncLogs,
+        updateCodingProfileConfig,
+        triggerProfileSync,
+        fetchSyncLogs,
         updateProfile,
         addProject,
         updateProject,

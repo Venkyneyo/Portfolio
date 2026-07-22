@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   LogOut,
   FileText,
-  Settings
+  Settings,
+  Code2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
@@ -36,12 +37,61 @@ import { SystemSettings } from './SystemSettings';
 import { AdminLogin } from './AdminLogin';
 import { supabase } from '../../utils/supabaseClient';
 
+type AdminTab = 'overview' | 'profile' | 'projects' | 'techstack' | 'experience' | 'education' | 'achievements' | 'blogs' | 'system' | 'messages' | 'backup';
+
+const getTabFromPath = (path: string): AdminTab => {
+  const cleanPath = path.toLowerCase().replace(/\/$/, '');
+  if (cleanPath === '/admin/projects') return 'projects';
+  if (cleanPath === '/admin/skills' || cleanPath === '/admin/techstack') return 'techstack';
+  if (cleanPath === '/admin/profile') return 'profile';
+  if (cleanPath === '/admin/settings' || cleanPath === '/admin/system') return 'system';
+  if (cleanPath === '/admin/messages') return 'messages';
+  if (cleanPath === '/admin/experience') return 'experience';
+  if (cleanPath === '/admin/education') return 'education';
+  if (cleanPath === '/admin/achievements') return 'achievements';
+  if (cleanPath === '/admin/blogs') return 'blogs';
+  if (cleanPath === '/admin/backup') return 'backup';
+  return 'overview';
+};
+
+const getPathFromTab = (tab: AdminTab): string => {
+  switch (tab) {
+    case 'projects': return '/admin/projects';
+    case 'techstack': return '/admin/skills';
+    case 'profile': return '/admin/profile';
+    case 'system': return '/admin/settings';
+    case 'messages': return '/admin/messages';
+    case 'experience': return '/admin/experience';
+    case 'education': return '/admin/education';
+    case 'achievements': return '/admin/achievements';
+    case 'blogs': return '/admin/blogs';
+    case 'backup': return '/admin/backup';
+    default: return '/admin/dashboard';
+  }
+};
+
 export const AdminLayout: React.FC = () => {
   const { toggleAdmin, messages, profile, adminUser, checkingAuth, logoutAdmin } = useApp();
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'profile' | 'projects' | 'techstack' | 'experience' | 'education' | 'achievements' | 'blogs' | 'system' | 'messages' | 'backup'
-  >('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => getTabFromPath(window.location.pathname));
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Sync tab changes with browser URL
+  const handleTabChange = (tab: AdminTab) => {
+    setActiveTab(tab);
+    const newPath = getPathFromTab(tab);
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({}, '', newPath);
+    }
+  };
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getTabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // If Auth check is loading
   if (checkingAuth) {
@@ -53,8 +103,8 @@ export const AdminLayout: React.FC = () => {
     );
   }
 
-  // If online mode (Supabase is initialized) and no admin user session exists, render login card
-  if (supabase && !adminUser) {
+  // If no admin user session exists, render login card
+  if (!adminUser) {
     return <AdminLogin />;
   }
 
@@ -84,6 +134,14 @@ export const AdminLayout: React.FC = () => {
   const handleLogout = async () => {
     soundFX.playClick();
     await logoutAdmin();
+    window.history.pushState({}, '', '/admin');
+    window.dispatchEvent(new Event('popstate'));
+  };
+
+  const handleReturnToPublic = () => {
+    soundFX.playClick();
+    window.history.pushState({}, '', '/');
+    window.dispatchEvent(new Event('popstate'));
   };
 
   return (
@@ -102,8 +160,8 @@ export const AdminLayout: React.FC = () => {
               </div>
               <div>
                 <h1 className="font-extrabold text-sm text-white tracking-tight">ADMIN COCKPIT</h1>
-                <span className="text-[10px] font-mono text-accent-pink tracking-widest uppercase">
-                  {supabase ? 'Production DB Connected' : 'Offline Storage Mode'}
+                <span className="text-[10px] font-mono text-emerald-400 tracking-widest uppercase">
+                  Role: ADMIN
                 </span>
               </div>
             </div>
@@ -119,7 +177,7 @@ export const AdminLayout: React.FC = () => {
                   key={item.id}
                   onClick={() => {
                     soundFX.playClick();
-                    setActiveTab(item.id as typeof activeTab);
+                    handleTabChange(item.id as AdminTab);
                   }}
                   onMouseEnter={() => soundFX.playHover()}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 cursor-pointer ${
@@ -145,18 +203,16 @@ export const AdminLayout: React.FC = () => {
 
         {/* Back and Logout Actions */}
         <div className="pt-6 border-t border-white/10 mt-6 space-y-2">
-          {supabase && (
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-all cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Log Out</span>
-            </button>
-          )}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-all cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log Out</span>
+          </button>
 
           <button
-            onClick={toggleAdmin}
+            onClick={handleReturnToPublic}
             onMouseEnter={() => soundFX.playHover()}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl glass-card border border-white/15 text-accent-cyan hover:text-white font-semibold text-xs transition-all cursor-pointer shadow-glow-cyan"
           >

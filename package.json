@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.cjs",
+    "dev:all": "start npm run server && npm run dev",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -13,12 +15,19 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
+    "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "framer-motion": "^12.42.2",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.25.0",
+    "multer": "^2.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "sqlite3": "^6.0.1",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

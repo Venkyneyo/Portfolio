@@ -18,9 +18,34 @@ import { Contact } from './components/sections/Contact';
 import { AdminLayout } from './components/admin/AdminLayout';
 
 const MainAppContent: React.FC = () => {
-  const { isAdminOpen, profile } = useApp();
+  const { profile } = useApp();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname);
+
+  // Listen for browser URL / location changes
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  // Update Document Title dynamically based on current route and profile name
+  useEffect(() => {
+    const name = profile.fullName || profile.brandName || 'Portfolio';
+    const role = profile.roleTitle ? ` | ${profile.roleTitle}` : '';
+
+    if (currentPath.toLowerCase().startsWith('/admin')) {
+      document.title = `Admin Cockpit - ${name}`;
+    } else if (profile.seoMetadata?.title) {
+      document.title = profile.seoMetadata.title;
+    } else {
+      document.title = `${name}${role}`;
+    }
+  }, [currentPath, profile.fullName, profile.brandName, profile.roleTitle, profile.seoMetadata]);
 
   // Initial Loading Screen Animation Logic
   useEffect(() => {
@@ -37,6 +62,8 @@ const MainAppContent: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const isAdminRoute = currentPath.toLowerCase().startsWith('/admin');
 
   return (
     <>
@@ -86,7 +113,7 @@ const MainAppContent: React.FC = () => {
       </AnimatePresence>
 
       {/* 2. Admin Dashboard View vs Public Portfolio View */}
-      {isAdminOpen ? (
+      {isAdminRoute ? (
         <AdminLayout />
       ) : (
         <div className="relative min-h-screen bg-[#050816] text-slate-100 overflow-x-hidden selection:bg-accent-purple/30 selection:text-accent-cyan">

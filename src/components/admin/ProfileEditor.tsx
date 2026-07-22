@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, MapPin, Globe, Sparkles, Save, CheckCircle2, Image as ImageIcon, FileText, Upload, AlertCircle } from 'lucide-react';
+import { User, Mail, MapPin, Globe, Sparkles, Save, CheckCircle2, Image as ImageIcon, FileText, Upload, AlertCircle, Code2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
 import { uploadService } from '../../utils/uploadService';

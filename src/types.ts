@@ -24,8 +24,21 @@ export interface ProfileSettings {
   uptimePercentage: number;
   activeUsers: string;
   theme_config?: any;
+  themeConfig?: any;
   seo_metadata?: any;
+  seoMetadata?: any;
   banner_image?: string;
+  bannerImage?: string;
+  leetcodeUsername?: string;
+  leetcodeUrl?: string;
+  leetcodeTotalSolved?: number;
+  leetcodeEasySolved?: number;
+  leetcodeMediumSolved?: number;
+  leetcodeHardSolved?: number;
+  leetcodeGlobalRanking?: string | number;
+  leetcodeContestRating?: number;
+  leetcodeStreakDays?: number;
+  leetcodeAcceptanceRate?: number;
 }
 
 export interface ProjectStats {
@@ -166,4 +179,25 @@ export interface DatabaseState {
   achievements: AchievementItem[];
   testimonials: Testimonial[];
   messages: MessageItem[];
+  codingProfiles?: CodingProfileItem[];
+}
+
+export interface CodingProfileItem {
+  id: string;
+  platform: 'leetcode' | 'hackerrank' | 'codechef' | 'codeforces' | 'github' | string;
+  username: string;
+  profileUrl: string;
+  autoSyncEnabled: boolean;
+  lastSyncTime: string;
+  lastSyncStatus: 'success' | 'error';
+  stats: any;
+  updatedAt: string;
+}
+
+export interface SyncLogItem {
+  id: number;
+  platform: string;
+  status: 'success' | 'error';
+  message: string;
+  timestamp: string;
 }

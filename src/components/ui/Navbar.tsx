@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
-import { Volume2, VolumeX, MousePointer, ShieldCheck, Menu, X, Sparkles, Code2 } from 'lucide-react';
+import { Volume2, VolumeX, MousePointer, Menu, X, Code2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { soundFX } from '../../utils/soundFX';
 
 export const Navbar: React.FC = () => {
-  const { soundEnabled, toggleSound, customCursorEnabled, toggleCursor, toggleAdmin, isAdminOpen, profile } = useApp();
+  const { soundEnabled, toggleSound, customCursorEnabled, toggleCursor, profile } = useApp();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
@@ -118,7 +118,7 @@ export const Navbar: React.FC = () => {
               })}
             </nav>
 
-            {/* Quick Settings & Admin CTA */}
+            {/* Quick Settings */}
             <div className="hidden lg:flex items-center gap-3">
               {/* Sound Toggle */}
               <button
@@ -139,32 +139,10 @@ export const Navbar: React.FC = () => {
               >
                 <MousePointer className={`w-4 h-4 ${customCursorEnabled ? 'text-accent-pink' : 'text-slate-500'}`} />
               </button>
-
-              {/* Admin Dashboard Switcher */}
-              <button
-                onClick={toggleAdmin}
-                onMouseEnter={() => soundFX.playHover()}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-xs tracking-wide transition-all shadow-lg cursor-pointer ${
-                  isAdminOpen
-                    ? 'bg-gradient-to-r from-accent-pink to-accent-violet text-white shadow-glow-pink'
-                    : 'bg-white/5 border border-accent-purple/40 text-accent-cyan hover:bg-accent-purple/20 hover:border-accent-purple shadow-glow-purple'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>{isAdminOpen ? 'Back to Portfolio' : 'Admin Cockpit'}</span>
-                <Sparkles className="w-3 h-3 animate-pulse text-amber-300" />
-              </button>
             </div>
 
             {/* Mobile Menu Trigger */}
             <div className="flex lg:hidden items-center gap-2">
-              <button
-                onClick={toggleAdmin}
-                className="p-2 rounded-lg bg-accent-purple/20 border border-accent-purple/40 text-accent-cyan text-xs font-semibold flex items-center gap-1"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Admin</span>
-              </button>
               <button
                 onClick={() => {
                   soundFX.playClick();
